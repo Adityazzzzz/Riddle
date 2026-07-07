@@ -1,26 +1,260 @@
 @import "tailwindcss";
 
+/* ============================================
+   Notewise — Tom Riddle's Diary Design System
+   Clean, modern, premium note-taking aesthetic
+   ============================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Background & Surface */
+  --background: #0a0a0b;
+  --surface: #faf8f5;
+  --surface-warm: #f5f0e8;
+  --surface-hover: #f0ebe2;
+
+  /* Ink Colors */
+  --ink-primary: #1a1a2e;
+  --ink-secondary: #44403c;
+  --ink-ghost: #57534e;
+  --ink-faded: #a8a29e;
+
+  /* Accent */
+  --accent: #b45309;
+  --accent-light: #d97706;
+  --accent-glow: rgba(217, 119, 6, 0.15);
+
+  /* Riddle's ink — slightly different from user's */
+  --riddle-ink: #1c1917;
+
+  /* Shadows */
+  --shadow-page: 0 4px 60px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-inner: inset 0 0 80px rgba(0, 0, 0, 0.03);
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-foreground: var(--ink-primary);
+  --color-surface: var(--surface);
+  --color-surface-warm: var(--surface-warm);
+  --color-surface-hover: var(--surface-hover);
+  --color-ink-primary: var(--ink-primary);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-ghost: var(--ink-ghost);
+  --color-ink-faded: var(--ink-faded);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-accent-glow: var(--accent-glow);
+  --color-riddle-ink: var(--riddle-ink);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ============================================
+   Base Styles
+   ============================================ */
+
+html {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ink-primary);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  min-height: 100%;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   Scrollbar — Hidden for clean look
+   ============================================ */
+
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================
+   Diary Page — The main writing surface
+   ============================================ */
+
+.diary-page {
+  background: var(--surface);
+  box-shadow: var(--shadow-page);
+  position: relative;
+}
+
+.diary-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow: var(--shadow-inner);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Subtle ruled lines */
+.diary-lines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 31px,
+    rgba(180, 165, 140, 0.15) 31px,
+    rgba(180, 165, 140, 0.15) 32px
+  );
+  background-position: 0 8px;
+}
+
+/* ============================================
+   Ink Animations
+   ============================================ */
+
+/* User's ink fading out (disappearing ink) */
+@keyframes inkFadeOut {
+  0% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+  60% {
+    opacity: 0.4;
+    filter: blur(0.5px);
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(3px);
+    transform: scale(0.98);
+  }
+}
+
+.ink-fade-out {
+  animation: inkFadeOut 2.5s ease-out forwards;
+}
+
+/* Riddle's ink appearing (ghost writing) */
+@keyframes inkAppear {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+    filter: blur(1.5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.ink-appear {
+  animation: inkAppear 0.5s ease-out forwards;
+}
+
+/* Blinking caret for streaming */
+@keyframes pulseCaret {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.pulse-caret {
+  animation: pulseCaret 0.8s ease-in-out infinite;
+}
+
+/* Message fade away */
+@keyframes fadeAway {
+  0% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
+.fade-away {
+  animation: fadeAway 2s ease-out forwards;
+}
+
+/* ============================================
+   Particle Float Animation
+   ============================================ */
+
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+  }
+  25% {
+    transform: translateY(calc(var(--drift, 20px) * -1)) translateX(5px);
+  }
+  50% {
+    transform: translateY(calc(var(--drift, 20px) * -0.5)) translateX(-3px);
+  }
+  75% {
+    transform: translateY(calc(var(--drift, 20px) * -0.8)) translateX(4px);
+  }
+}
+
+/* ============================================
+   Input Styling
+   ============================================ */
+
+.diary-textarea {
+  background: transparent;
+  resize: none;
+  outline: none;
+  border: none;
+  width: 100%;
+  caret-color: var(--accent);
+}
+
+.diary-textarea::placeholder {
+  color: var(--ink-faded);
+  font-style: italic;
+}
+
+/* Canvas drawing surface */
+.drawing-canvas {
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* ============================================
+   PWA — Standalone mode adjustments
+   ============================================ */
+
+@media (display-mode: standalone) {
+  body {
+    /* Safe area insets for notched devices */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ============================================
+   Transitions & Utilities
+   ============================================ */
+
+.transition-ink {
+  transition: opacity 0.3s ease, filter 0.3s ease, transform 0.3s ease;
+}
+
+/* Mode toggle button styles */
+.mode-btn {
+  transition: all 0.2s ease;
+}
+.mode-btn:hover {
+  background: var(--surface-hover);
+}
+.mode-btn.active {
+  background: var(--accent-glow);
+  color: var(--accent);
 }
