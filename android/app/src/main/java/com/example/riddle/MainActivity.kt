@@ -250,11 +250,39 @@ fun DiaryScreen(context: Context) {
         }
     }
 
-    // Export current Compose canvas to a compressed Base64 PNG image
+    // Export current Compose canvas to a compressed Base64 PNG image (cropped to drawing bounds)
     fun exportCanvasToBase64(): String? {
         if (strokes.isEmpty() || canvasWidth <= 0 || canvasHeight <= 0) return null
 
-        val bitmap = Bitmap.createBitmap(canvasWidth, canvasHeight, Bitmap.Config.ARGB_8888)
+        // 1. Calculate bounding box of all strokes
+        var minX = Float.MAX_VALUE
+        var maxX = Float.MIN_VALUE
+        var minY = Float.MAX_VALUE
+        var maxY = Float.MIN_VALUE
+
+        strokes.forEach { stroke ->
+            stroke.points.forEach { p ->
+                if (p.x < minX) minX = p.x
+                if (p.x > maxX) maxX = p.x
+                if (p.y < minY) minY = p.y
+                if (p.y > maxY) maxY = p.y
+            }
+        }
+
+        // Add 30px padding for safety
+        val padding = 30f
+        minX = (minX - padding).coerceAtLeast(0f)
+        minY = (minY - padding).coerceAtLeast(0f)
+        maxX = (maxX + padding).coerceAtMost(canvasWidth.toFloat())
+        maxY = (maxY + padding).coerceAtMost(canvasHeight.toFloat())
+
+        val width = (maxX - minX).toInt()
+        val height = (maxY - minY).toInt()
+
+        if (width <= 0 || height <= 0) return null
+
+        // 2. Create small cropped bitmap to speed up compression and network transmission
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
         // Fill canvas with white background for higher OCR accuracy
@@ -272,40 +300,41 @@ fun DiaryScreen(context: Context) {
             if (stroke.points.isEmpty()) return@forEach
             paint.strokeWidth = stroke.width
             val path = Path()
-            path.moveTo(stroke.points[0].x, stroke.points[0].y)
+            // Offset coordinates to fit inside the cropped bounds
+            path.moveTo(stroke.points[0].x - minX, stroke.points[0].y - minY)
             for (i in 1 until stroke.points.size) {
                 val p = stroke.points[i]
-                path.lineTo(p.x, p.y)
+                path.lineTo(p.x - minX, p.y - minY)
             }
             canvas.drawPath(path, paint)
         }
 
         val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.PNG, 90, outputStream)
+        bitmap.compress(Bitmap.CompressFormat.PNG, 85, outputStream) // Compact 85% compression
         return Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
     }
 
-    // Trigger vector ink fade out and send to Gemini
+    // Trigger vector ink fade out and send to Gemini in parallel
     fun submitWriting() {
         if (strokes.isEmpty() || isProcessing) return;
 
+        val base64 = exportCanvasToBase64()
+        if (base64 != null) {
+            // Trigger API query IMMEDIATELY in parallel to save latency
+            queryGemini(base64)
+        }
+
+        // Run screen fade out concurrently
         scope.launch {
-            val base64 = exportCanvasToBase64()
-            
-            // Animate canvas stroke dissolve
             launch {
-                canvasBlur.animateTo(3f, tween(1000))
+                canvasBlur.animateTo(3f, tween(700))
             }
-            canvasAlpha.animateTo(0f, tween(1200))
+            canvasAlpha.animateTo(0f, tween(900))
             
-            // Clear strokes and reset animation parameters
+            // Clear strokes and reset parameters
             strokes.clear()
             canvasAlpha.snapTo(1f)
             canvasBlur.snapTo(0f)
-
-            if (base64 != null) {
-                queryGemini(base64)
-            }
         }
     }
 
@@ -380,9 +409,9 @@ fun DiaryScreen(context: Context) {
                                 )
                                 currentPoints.clear()
                                 
-                                // Launch auto submit countdown (1.6 seconds of pen lift)
+                                // Launch auto submit countdown (0.9 seconds of pen lift)
                                 autoSubmitJob = scope.launch {
-                                    delay(1600)
+                                    delay(900)
                                     submitWriting()
                                 }
                             }
