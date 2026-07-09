@@ -17,7 +17,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#FDFDFB] text-[#222228] selection:bg-amber-100 selection:text-amber-900 relative overflow-hidden font-sans flex flex-col justify-between">
+    <div className="min-h-screen bg-[#FDFDFB] text-[#222228] selection:bg-amber-100 selection:text-amber-900 relative overflow-x-hidden overflow-y-auto font-sans flex flex-col justify-between">
       
       {/* Import Google Fonts directly */}
       <style dangerouslySetInnerHTML={{ __html: `
