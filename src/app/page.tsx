@@ -17,7 +17,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#FDFDFB] text-[#222228] selection:bg-amber-100 selection:text-amber-900 relative overflow-x-hidden overflow-y-auto font-sans flex flex-col justify-between">
+    <div className="min-h-screen bg-[#FDFDFB] text-[#222228] selection:bg-amber-100 selection:text-amber-900 relative overflow-x-hidden font-sans flex flex-col justify-between">
       
       {/* Import Google Fonts directly */}
       <style dangerouslySetInnerHTML={{ __html: `
@@ -110,7 +110,7 @@ export default function LandingPage() {
       </header>
 
       {/* Two-Column Editorial Layout (Single Screen Focus) */}
-      <main className="max-w-6xl w-full mx-auto px-8 flex-1 flex items-center justify-center py-6 relative z-10">
+      <main className="max-w-6xl w-full mx-auto px-8 flex-1 flex items-center justify-center py-12 md:py-6 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center w-full">
           
           {/* Left Column: Premium copy & Action */}

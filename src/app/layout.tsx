@@ -58,7 +58,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${caveat.variable} ${cedarvilleCursive.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${caveat.variable} ${cedarvilleCursive.variable} min-h-full antialiased`}
     >
       <head>
         {/* PWA service worker registration */}
@@ -74,7 +74,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="h-full overflow-hidden bg-background">
+      <body className="min-h-full bg-[#FDFDFB]">
         {children}
       </body>
     </html>
