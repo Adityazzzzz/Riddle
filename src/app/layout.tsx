@@ -26,7 +26,7 @@ const cedarvilleCursive = Cedarville_Cursive({
 });
 
 export const metadata: Metadata = {
-  title: "Notewise — The Diary That Writes Back",
+  title: "You Know Who",
   description:
     "A magical AI diary inspired by Tom Riddle's Horcrux. Scribble your secrets with a pen, watch the ink vanish, and let the diary write back.",
   manifest: "/manifest.json",
