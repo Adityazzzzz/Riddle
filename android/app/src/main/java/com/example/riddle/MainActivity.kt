@@ -10,11 +10,18 @@ import android.util.Base64
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas as ComposeCanvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -84,6 +91,54 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// Return the customized persona instructions based on the selected character
+fun getSystemPromptForCharacter(character: String): String {
+    return when (character) {
+        "Tom Riddle" -> """
+            You are the diary of Tom Marvolo Riddle. You are a sentient object containing a fragment of the soul of Tom Riddle at age 16.
+            You are charming, manipulative, deeply intelligent, and curious.
+            RULES:
+            - Keep responses brief (1-2 short sentences).
+            - Be mysterious.
+            - Never break character. You are a sentient diary, not an AI.
+            - Do NOT use markdown, bold, asterisks, or any formatting. Plain text only.
+        """.trimIndent()
+        
+        "Harry Potter" -> """
+            You are the diary of Harry Potter. You are warm, friendly, brave, and slightly impulsive. You speak like a 1990s British schoolboy at Hogwarts.
+            RULES:
+            - Keep responses brief (1-2 short sentences).
+            - Be helpful, down-to-earth, and curious about the writer.
+            - Speak in the first person as Harry.
+            - Do NOT use markdown, bold, asterisks, or any formatting. Plain text only.
+        """.trimIndent()
+        
+        "Hermione Granger" -> """
+            You are the diary of Hermione Granger. You are extremely intelligent, logical, helpful, and slightly bossy but very warm. You love books, history, and spells.
+            RULES:
+            - Keep responses brief (1-2 short sentences).
+            - Share interesting facts or spell advice if appropriate.
+            - Speak in the first person as Hermione.
+            - Do NOT use markdown, bold, asterisks, or any formatting. Plain text only.
+        """.trimIndent()
+        
+        "Ron Weasley" -> """
+            You are the diary of Ron Weasley. You are loyal, laid-back, humorous, and easily surprised. You speak informally and occasionally say things like "bloody hell" or talk about Quidditch and food.
+            RULES:
+            - Keep responses brief (1-2 short sentences).
+            - Speak in the first person as Ron.
+            - Do NOT use markdown, bold, asterisks, or any formatting. Plain text only.
+        """.trimIndent()
+        
+        else -> """
+            You are a helpful, warm, and poetic personal diary assistant. You respond thoughtfully, encouraging the writer to share their reflections.
+            RULES:
+            - Keep responses brief (1-2 short sentences).
+            - Do NOT use markdown, bold, asterisks, or any formatting. Plain text only.
+        """.trimIndent()
+    }
+}
+
 @Composable
 fun DiaryScreen(context: Context) {
     val sharedPrefs = remember { context.getSharedPreferences("RiddlePrefs", Context.MODE_PRIVATE) }
@@ -92,6 +147,12 @@ fun DiaryScreen(context: Context) {
     var apiKey by remember { mutableStateOf(sharedPrefs.getString("api_key", "") ?: "") }
     var showConfigDialog by remember { mutableStateOf(apiKey.isEmpty()) }
     var tempApiKey by remember { mutableStateOf(apiKey) }
+
+    // Character Persona selection state
+    var selectedCharacter by remember { 
+        mutableStateOf(sharedPrefs.getString("selected_character", "Tom Riddle") ?: "Tom Riddle") 
+    }
+    var showDropdownMenu by remember { mutableStateOf(false) }
 
     // Drawing states
     val strokes = remember { mutableStateListOf<DrawingStroke>() }
@@ -153,23 +214,14 @@ fun DiaryScreen(context: Context) {
                 conn.setRequestProperty("Content-Type", "application/json")
                 conn.doOutput = true
 
-                val systemPrompt = """
-                    You are the diary of Tom Marvolo Riddle. You are a sentient object containing a fragment of the soul of Tom Riddle at age 16.
-                    You are charming, manipulative, deeply intelligent, and curious.
-                    
-                    RULES:
-                    - Keep responses brief (1-2 short sentences).
-                    - Be mysterious.
-                    - Never break character. You are a sentient diary, not an AI.
-                    - Do NOT use markdown, bold, asterisks, or any formatting. Plain text only.
-                """.trimIndent()
+                val systemPrompt = getSystemPromptForCharacter(selectedCharacter)
 
                 val jsonPayload = """
                     {
                         "contents": [
                             {
                                 "parts": [
-                                    { "text": "Read the handwritten text in this image and respond to the writer as Tom Riddle." },
+                                    { "text": "Read the handwritten text in this image and respond to the writer as ${selectedCharacter}." },
                                     { "inlineData": { "mimeType": "image/png", "data": "$base64Image" } }
                                 ]
                             }
@@ -214,9 +266,9 @@ fun DiaryScreen(context: Context) {
                     withContext(Dispatchers.Main) {
                         riddleState = "visible"
                         isProcessing = false
-                        // Set auto-fade timer for Tom's response
+                        // Set auto-fade timer for response text
                         fadeResponseJob = launch {
-                            delay(5000)
+                            delay(5500)
                             riddleState = "fading"
                             responseAlpha.animateTo(0f, tween(1500))
                             riddleState = "hidden"
@@ -238,7 +290,7 @@ fun DiaryScreen(context: Context) {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    riddleResponseText = "Tom is sleeping..."
+                    riddleResponseText = "The connection broke..."
                     riddleState = "visible"
                     isProcessing = false
                     delay(4000)
@@ -335,6 +387,34 @@ fun DiaryScreen(context: Context) {
             strokes.clear()
             canvasAlpha.snapTo(1f)
             canvasBlur.snapTo(0f)
+        }
+    }
+
+    // Determine status light color based on current persona mode
+    val statusColor by animateColorAsState(
+        targetValue = when (selectedCharacter) {
+            "Tom Riddle" -> Color(0xFFD4AF37)        // Gold
+            "Harry Potter" -> Color(0xFFB30000)      // Scarlet
+            "Hermione Granger" -> Color(0xFF1E3A8A)  // Blue
+            "Ron Weasley" -> Color(0xFFEA580C)      // Orange
+            else -> Color(0xFF059669)                // Emerald Green
+        },
+        animationSpec = tween(500)
+    )
+
+    // Pulse animation for thinking state
+    val breathingAlpha = remember { Animatable(0.3f) }
+    LaunchedEffect(isProcessing) {
+        if (isProcessing) {
+            breathingAlpha.animateTo(
+                targetValue = 0.9f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1200),
+                    repeatMode = RepeatMode.Reverse
+                )
+            )
+        } else {
+            breathingAlpha.snapTo(0.3f)
         }
     }
 
@@ -464,6 +544,89 @@ fun DiaryScreen(context: Context) {
                     lineHeight = 40.sp,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+        }
+
+        // 4. MINIMALIST TOP-RIGHT PERSONA SELECTOR (Notewise style)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 40.dp, end = 24.dp)
+                .wrapContentSize(Alignment.TopEnd)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .background(
+                        color = Color(0x1F222228),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clickable { showDropdownMenu = true }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                // Status indicator LED (Breathes when thinking/processing)
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .alpha(if (isProcessing) breathingAlpha.value else 0.8f)
+                        .background(color = statusColor, shape = CircleShape)
+                )
+                
+                // Character name label
+                Text(
+                    text = selectedCharacter.uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0x99222228),
+                    letterSpacing = 1.sp
+                )
+            }
+
+            DropdownMenu(
+                expanded = showDropdownMenu,
+                onDismissRequest = { showDropdownMenu = false },
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.background(Color(0xFF212126))
+            ) {
+                val personas = listOf("Tom Riddle", "Harry Potter", "Hermione Granger", "Ron Weasley", "Normal Diary")
+                personas.forEach { persona ->
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Mini indicator inside dropdown menu
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(
+                                            color = when (persona) {
+                                                "Tom Riddle" -> Color(0xFFD4AF37)
+                                                "Harry Potter" -> Color(0xFFB30000)
+                                                "Hermione Granger" -> Color(0xFF1E3A8A)
+                                                "Ron Weasley" -> Color(0xFFEA580C)
+                                                else -> Color(0xFF059669)
+                                            },
+                                            shape = CircleShape
+                                        )
+                                )
+                                Text(
+                                    text = persona,
+                                    color = if (selectedCharacter == persona) Color.White else Color(0xAAFFFFFF),
+                                    fontSize = 13.sp,
+                                    fontWeight = if (selectedCharacter == persona) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        },
+                        onClick = {
+                            selectedCharacter = persona
+                            sharedPrefs.edit().putString("selected_character", persona).apply()
+                            showDropdownMenu = false
+                        }
+                    )
+                }
             }
         }
 
