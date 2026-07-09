@@ -54,8 +54,7 @@
    ============================================ */
 
 html {
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
 }
 
 body {
@@ -63,7 +62,7 @@ body {
   color: var(--ink-primary);
   font-family: var(--font-sans, system-ui, sans-serif);
   min-height: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
