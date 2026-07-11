@@ -24,6 +24,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -146,6 +150,7 @@ fun getSystemPromptForCharacter(character: String): String {
 
             STRICT RULES:
             - ONLY output code and the one-line explanation. Nothing else. No greetings, no disclaimers.
+            - Do NOT write any comments in the code (absolutely no // comments, no /* comments */, no python comments #). Just clean code.
             - Do NOT say "Sure!" or "Here is the solution" or any preamble.
             - Do NOT use markdown code fences (no triple backticks). Just raw code directly.
             - Keep the explanation to exactly one line after the code.
@@ -164,10 +169,47 @@ fun getSystemPromptForCharacter(character: String): String {
 fun DiaryScreen(context: Context) {
     val sharedPrefs = remember { context.getSharedPreferences("RiddlePrefs", Context.MODE_PRIVATE) }
     
-    // API key configuration state
-    var apiKey by remember { mutableStateOf(sharedPrefs.getString("api_key", "") ?: "") }
+    // API Configuration state
+    var apiProvider by remember { 
+        mutableStateOf(sharedPrefs.getString("api_provider", "gemini") ?: "gemini") 
+    }
+    var apiKey by remember { 
+        mutableStateOf(sharedPrefs.getString("api_key", "") ?: "") 
+    }
+    var apiEndpoint by remember { 
+        mutableStateOf(sharedPrefs.getString("api_endpoint", "https://generativelanguage.googleapis.com") ?: "https://generativelanguage.googleapis.com") 
+    }
+    var apiModel by remember { 
+        mutableStateOf(sharedPrefs.getString("api_model", "gemini-2.5-flash") ?: "gemini-2.5-flash") 
+    }
+
     var showConfigDialog by remember { mutableStateOf(apiKey.isEmpty()) }
+
+    var tempApiProvider by remember { mutableStateOf(apiProvider) }
     var tempApiKey by remember { mutableStateOf(apiKey) }
+    var tempApiEndpoint by remember { mutableStateOf(apiEndpoint) }
+    var tempApiModel by remember { mutableStateOf(apiModel) }
+
+    LaunchedEffect(tempApiProvider) {
+        when (tempApiProvider) {
+            "gemini" -> {
+                tempApiEndpoint = "https://generativelanguage.googleapis.com"
+                tempApiModel = "gemini-2.5-flash"
+            }
+            "openai" -> {
+                tempApiEndpoint = "https://api.openai.com/v1/chat/completions"
+                tempApiModel = "gpt-4o"
+            }
+            "claude" -> {
+                tempApiEndpoint = "https://api.anthropic.com/v1/messages"
+                tempApiModel = "claude-3-5-sonnet-20241022"
+            }
+            "groq" -> {
+                tempApiEndpoint = "https://api.groq.com/openai/v1/chat/completions"
+                tempApiModel = "llama-3.2-11b-vision-preview"
+            }
+        }
+    }
 
     // Character Persona selection state
     var selectedCharacter by remember { 
@@ -217,8 +259,59 @@ fun DiaryScreen(context: Context) {
                   .replace("\t", "\\t")
     }
 
-    // Direct HTTP call to Gemini API for handwriting vision & streaming response
-    fun queryGemini(base64Image: String) {
+    // Helper function to decode Unicode escape sequences (like \u003c for <)
+    fun decodeUnicode(input: String): String {
+        try {
+            val pattern = Pattern.compile("\\\\u([0-9a-fA-F]{4})")
+            val matcher = pattern.matcher(input)
+            val sb = StringBuffer()
+            while (matcher.find()) {
+                val hex = matcher.group(1)
+                val charCode = hex.toInt(16)
+                matcher.appendReplacement(sb, charCode.toChar().toString())
+            }
+            matcher.appendTail(sb)
+            return sb.toString()
+        } catch (e: Exception) {
+            return input
+        }
+    }
+
+    // Highlight keywords in code (crimson/red highlighting for keywords and operators)
+    fun highlightCode(text: String): AnnotatedString {
+        val keywords = setOf(
+            "class", "struct", "public", "private", "protected", "void", "int", "double", "float", 
+            "char", "string", "bool", "vector", "map", "set", "unordered_map", "unordered_set", 
+            "return", "if", "else", "for", "while", "do", "switch", "case", "break", "continue", 
+            "const", "auto", "nullptr", "template", "typename", "using", "namespace", "std", "define", "include"
+        )
+        
+        val builder = AnnotatedString.Builder()
+        val wordRegex = Regex("([a-zA-Z0-9_]+|[^a-zA-Z0-9_\\s]+|\\s+)")
+        val matches = wordRegex.findAll(text)
+        
+        for (match in matches) {
+            val token = match.value
+            if (token in keywords) {
+                // Style keywords in crimson-rose color
+                builder.pushStyle(SpanStyle(color = Color(0xFFC2410C))) 
+                builder.append(token)
+                builder.pop()
+            } else if (token.matches(Regex("[&|^~<>!=+\\-*/%]+"))) {
+                // Style operators/symbols in a bold vivid red color
+                builder.pushStyle(SpanStyle(color = Color(0xFFE11D48), fontWeight = FontWeight.Bold)) 
+                builder.append(token)
+                builder.pop()
+            } else {
+                builder.append(token)
+            }
+        }
+        
+        return builder.toAnnotatedString()
+    }
+
+    // Direct HTTP call to Gemini/OpenAI/Claude API for handwriting vision & streaming response
+    fun queryAI(base64Image: String) {
         if (apiKey.isEmpty()) {
             riddleResponseText = "Bind the diary to a key first."
             riddleState = "visible"
@@ -238,37 +331,107 @@ fun DiaryScreen(context: Context) {
 
         scope.launch(Dispatchers.IO) {
             try {
-                val url = URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=$apiKey")
+                val systemPrompt = getSystemPromptForCharacter(selectedCharacter)
+                val escapedSystemPrompt = escapeJsonString(systemPrompt)
+
+                val (url, jsonPayload) = when (apiProvider) {
+                    "gemini" -> {
+                        val requestUrl = URL("${apiEndpoint.removeSuffix("/")}/v1beta/models/$apiModel:streamGenerateContent?key=$apiKey")
+                        val payload = """
+                            {
+                                "contents": [
+                                    {
+                                        "parts": [
+                                            { "text": "Read the handwritten text in this image and respond to the writer as ${selectedCharacter}." },
+                                            { "inlineData": { "mimeType": "image/png", "data": "$base64Image" } }
+                                        ]
+                                    }
+                                ],
+                                "systemInstruction": {
+                                    "parts": [{ "text": "$escapedSystemPrompt" }]
+                                }
+                            }
+                        """.trimIndent()
+                        Pair(requestUrl, payload)
+                    }
+                    "claude" -> {
+                        val requestUrl = URL(apiEndpoint)
+                        val payload = """
+                            {
+                                "model": "$apiModel",
+                                "system": "$escapedSystemPrompt",
+                                "messages": [
+                                    {
+                                        "role": "user",
+                                        "content": [
+                                            { "type": "text", "text": "Read the handwritten text in this image and respond to the writer as ${selectedCharacter}." },
+                                            {
+                                                "type": "image",
+                                                "source": {
+                                                    "type": "base64",
+                                                    "media_type": "image/png",
+                                                    "data": "$base64Image"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "stream": true,
+                                "max_tokens": 1024
+                            }
+                        """.trimIndent()
+                        Pair(requestUrl, payload)
+                    }
+                    else -> { // openai, groq, custom (OpenAI compatible)
+                        val requestUrl = URL(apiEndpoint)
+                        val payload = """
+                            {
+                                "model": "$apiModel",
+                                "messages": [
+                                    { "role": "system", "content": "$escapedSystemPrompt" },
+                                    {
+                                        "role": "user",
+                                        "content": [
+                                            { "type": "text", "text": "Read the handwritten text in this image and respond to the writer as ${selectedCharacter}." },
+                                            { "type": "image_url", "image_url": { "url": "data:image/png;base64,$base64Image" } }
+                                        ]
+                                    }
+                                ],
+                                "stream": true
+                            }
+                        """.trimIndent()
+                        Pair(requestUrl, payload)
+                    }
+                }
+
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json")
                 conn.doOutput = true
 
-                val systemPrompt = getSystemPromptForCharacter(selectedCharacter)
-                val escapedSystemPrompt = escapeJsonString(systemPrompt)
-
-                val jsonPayload = """
-                    {
-                        "contents": [
-                            {
-                                "parts": [
-                                    { "text": "Read the handwritten text in this image and respond to the writer as ${selectedCharacter}." },
-                                    { "inlineData": { "mimeType": "image/png", "data": "$base64Image" } }
-                                ]
-                            }
-                        ],
-                        "systemInstruction": {
-                            "parts": [{ "text": "$escapedSystemPrompt" }]
-                        }
+                // Add headers for non-gemini providers
+                when (apiProvider) {
+                    "openai", "groq", "custom" -> {
+                        conn.setRequestProperty("Authorization", "Bearer $apiKey")
                     }
-                """.trimIndent()
+                    "claude" -> {
+                        conn.setRequestProperty("x-api-key", apiKey)
+                        conn.setRequestProperty("anthropic-version", "2023-06-01")
+                    }
+                }
 
                 conn.outputStream.use { it.write(jsonPayload.toByteArray()) }
 
                 if (conn.responseCode == 200) {
                     val reader = BufferedReader(InputStreamReader(conn.inputStream))
                     var line: String?
-                    val pattern = Pattern.compile("\"text\":\\s*\"([^\"]+)\"")
+                    
+                    // Match "text" for Gemini, or "content" for OpenAI/Claude/others
+                    val pattern = if (apiProvider == "gemini") {
+                        Pattern.compile("\"text\":\\s*\"([^\"]+)\"")
+                    } else {
+                        Pattern.compile("\"content\":\\s*\"([^\"]+)\"")
+                    }
 
                     withContext(Dispatchers.Main) {
                         responseAlpha.snapTo(0f)
@@ -278,10 +441,11 @@ fun DiaryScreen(context: Context) {
                     while (reader.readLine().also { line = it } != null) {
                         val matcher = pattern.matcher(line ?: "")
                         while (matcher.find()) {
-                            val token = matcher.group(1)
+                            var token = matcher.group(1)
                                 ?.replace("\\n", "\n")
                                 ?.replace("\\\"", "\"")
                                 ?.replace("\\\\", "\\") ?: ""
+                            token = decodeUnicode(token)
                             
                             // Diary personas: cozy 20ms typewriter. Coder: instant (code is long)
                             val charDelay = if (selectedCharacter == "Coder") 0L else 20L
@@ -294,18 +458,19 @@ fun DiaryScreen(context: Context) {
                         }
                     }
                     reader.close()
-
+ 
                     withContext(Dispatchers.Main) {
                         riddleState = "visible"
                         isProcessing = false
-                        // Coder needs way more reading time (code is long). Diary personas fade after 5.5s.
-                        val fadeDuration = if (selectedCharacter == "Coder") 60_000L else 5_500L
-                        fadeResponseJob = launch {
-                            delay(fadeDuration)
-                            riddleState = "fading"
-                            responseAlpha.animateTo(0f, tween(1500))
-                            riddleState = "hidden"
-                            riddleResponseText = ""
+                        // Disable auto-fade for Coder (needs manual clear). Diary personas fade after 5.5s.
+                        if (selectedCharacter != "Coder") {
+                            fadeResponseJob = launch {
+                                delay(5500)
+                                riddleState = "fading"
+                                responseAlpha.animateTo(0f, tween(1500))
+                                riddleState = "hidden"
+                                riddleResponseText = ""
+                            }
                         }
                     }
                 } else {
@@ -406,7 +571,7 @@ fun DiaryScreen(context: Context) {
         val base64 = exportCanvasToBase64()
         if (base64 != null) {
             // Trigger API query IMMEDIATELY in parallel to save latency
-            queryGemini(base64)
+            queryAI(base64)
         }
 
         // Run screen fade out concurrently
@@ -558,25 +723,83 @@ fun DiaryScreen(context: Context) {
             }
         }
 
-        // 2. TOM RIDDLE REPLY (Floating Cursive Text)
+        // 2. TOM RIDDLE REPLY (Floating Cursive Text OR Monospace Syntax-Highlighted Code)
         if (riddleResponseText.isNotEmpty()) {
+            val isCoder = selectedCharacter == "Coder"
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(40.dp)
+                    .padding(if (isCoder) 32.dp else 40.dp)
                     .alpha(responseAlpha.value),
+                contentAlignment = if (isCoder) Alignment.TopStart else Alignment.Center
+            ) {
+                if (isCoder) {
+                    val codeLength = riddleResponseText.length
+                    val fontSize = when {
+                        codeLength > 800 -> 12.sp
+                        codeLength > 400 -> 14.sp
+                        else -> 16.sp
+                    }
+                    val lineHeight = when {
+                        codeLength > 800 -> 16.sp
+                        codeLength > 400 -> 19.sp
+                        else -> 22.sp
+                    }
+                    Text(
+                        text = highlightCode(riddleResponseText),
+                        color = Color(0xFF222228),
+                        fontSize = fontSize,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Normal,
+                        textAlign = TextAlign.Start,
+                        lineHeight = lineHeight,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 60.dp, bottom = 80.dp) // Provide spacing for top bar and bottom button
+                            .verticalScroll(rememberScrollState())
+                    )
+                } else {
+                    Text(
+                        text = riddleResponseText,
+                        color = Color(0xFF222228),
+                        fontSize = 28.sp,
+                        fontFamily = FontFamily.Cursive,
+                        fontWeight = FontWeight.Medium,
+                        fontStyle = FontStyle.Italic,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 40.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
+        // 2.5 CLEAR BUTTON FOR CODER (Only visible when Coder has an active response)
+        if (selectedCharacter == "Coder" && riddleResponseText.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 40.dp, end = 24.dp)
+                    .background(
+                        color = Color(0xFF222228),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clickable {
+                        scope.launch {
+                            responseAlpha.animateTo(0f, tween(800))
+                            riddleState = "hidden"
+                            riddleResponseText = ""
+                        }
+                    }
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = riddleResponseText,
-                    color = Color(0xFF222228),
-                    fontSize = 28.sp,
-                    fontFamily = FontFamily.Cursive,
-                    fontWeight = FontWeight.Medium,
-                    fontStyle = FontStyle.Italic,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 40.sp,
-                    modifier = Modifier.fillMaxWidth()
+                    text = "CLEAR CODE",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
                 )
             }
         }
@@ -665,7 +888,7 @@ fun DiaryScreen(context: Context) {
             }
         }
 
-        // 3. API KEY CONFIG DIALOG (Shows on 1st launch, or triggers via 5-finger tap)
+        // 3. API CONFIG DIALOG (Shows on 1st launch, or triggers via 5-finger tap)
         if (showConfigDialog) {
             Dialog(onDismissRequest = { if (apiKey.isNotEmpty()) showConfigDialog = false }) {
                 Surface(
@@ -675,9 +898,11 @@ fun DiaryScreen(context: Context) {
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(20.dp),
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
                             text = "Bind the Horcrux",
@@ -685,18 +910,77 @@ fun DiaryScreen(context: Context) {
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Provide your Gemini API Key. A 5-finger tap on the blank screen will return you here.",
+                            text = "Choose your API provider and supply the configuration. A 5-finger tap returns you here.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Custom Styled Provider Selector
+                        Text(
+                            text = "PROVIDER",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0x99222228),
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.align(Alignment.Start)
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val providers = listOf("gemini", "openai", "claude", "groq", "custom")
+                            providers.forEach { provider ->
+                                val isSelected = tempApiProvider == provider
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .background(
+                                            color = if (isSelected) Color(0xFF222228) else Color(0x0F222228),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { tempApiProvider = provider }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = provider.uppercase(),
+                                        color = if (isSelected) Color.White else Color(0xFF222228),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
                         OutlinedTextField(
-                            value = tempApiKey,
-                            onValueChange = { tempApiKey = it },
-                            label = { Text("Gemini API Key") },
+                            value = tempApiEndpoint,
+                            onValueChange = { tempApiEndpoint = it },
+                            label = { Text("API Endpoint Base URL") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        OutlinedTextField(
+                            value = tempApiKey,
+                            onValueChange = { tempApiKey = it },
+                            label = { Text("API Key") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = tempApiModel,
+                            onValueChange = { tempApiModel = it },
+                            label = { Text("Model Name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
                         Row(
                             horizontalArrangement = Arrangement.End,
                             modifier = Modifier.fillMaxWidth()
@@ -711,11 +995,21 @@ fun DiaryScreen(context: Context) {
                             Button(onClick = {
                                 if (tempApiKey.isNotEmpty()) {
                                     apiKey = tempApiKey
-                                    sharedPrefs.edit().putString("api_key", tempApiKey).apply()
+                                    apiProvider = tempApiProvider
+                                    apiEndpoint = tempApiEndpoint
+                                    apiModel = tempApiModel
+                                    
+                                    sharedPrefs.edit()
+                                        .putString("api_key", tempApiKey)
+                                        .putString("api_provider", tempApiProvider)
+                                        .putString("api_endpoint", tempApiEndpoint)
+                                        .putString("api_model", tempApiModel)
+                                        .apply()
+
                                     showConfigDialog = false
                                 }
                             }) {
-                                Text("Save Key")
+                                Text("Save Config")
                             }
                         }
                     }
