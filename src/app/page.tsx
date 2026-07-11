@@ -104,7 +104,7 @@ export default function LandingPage() {
             </span>
           )}
           <span className="text-[10px] font-bold tracking-widest text-[#1C1C21] border border-[#1C1C21]/20 px-3 py-1.5 rounded-full uppercase">
-            v1.1.0
+            v1.1.2
           </span>
         </div>
       </header>
@@ -132,18 +132,18 @@ export default function LandingPage() {
             {/* Premium Download Action Card */}
             <div className="mt-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 w-full">
               <a
-                href="/releases/riddle-diary-v1.1.0.apk"
-                download="riddle-diary-v1.1.0.apk"
+                href="/releases/riddle-diary-v1.1.2.apk"
+                download="riddle-diary-v1.1.2.apk"
                 className="px-8 py-4.5 rounded-xl bg-[#1C1C21] hover:bg-[#2d2d35] text-white font-medium shadow-xl shadow-[#1c1c21]/15 transition-all duration-300 active:scale-98 flex items-center gap-3.5 text-base border border-stone-800"
               >
                 <svg className="w-5 h-5 text-stone-300" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
-                Download v1.1.0
+                Download v1.1.2
               </a>
               
               <div className="text-left">
-                <span className="block text-xs font-bold text-[#1c1c21]/90 uppercase tracking-widest">riddle-diary-v1.1.0.apk</span>
+                <span className="block text-xs font-bold text-[#1c1c21]/90 uppercase tracking-widest">riddle-diary-v1.1.2.apk</span>
                 <span className="block text-xs text-stone-400 font-medium mt-0.5">11.4 MB • Android 7.0+ • Latest</span>
               </div>
             </div>
@@ -236,19 +236,61 @@ export default function LandingPage() {
 
           <div className="flex flex-col gap-4">
 
-            {/* v1.1.0 — Latest */}
+            {/* v1.1.2 — Latest */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-stone-200/80 bg-white shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-4">
                 <span className="text-[10px] font-black tracking-widest bg-[#1C1C21] text-white px-2.5 py-1 rounded-full uppercase">Latest</span>
                 <div>
-                  <p className="text-sm font-bold text-[#1C1C21] font-sans">v1.1.0 — Coder Persona</p>
+                  <p className="text-sm font-bold text-[#1C1C21] font-sans">v1.1.2 — API Payload Fix</p>
+                  <p className="text-xs text-stone-400 mt-0.5 font-sans">Jul 11, 2026 • Fixed JSON payload escaping, resolving Coder/Ron API errors</p>
+                </div>
+              </div>
+              <a
+                href="/releases/riddle-diary-v1.1.2.apk"
+                download="riddle-diary-v1.1.2.apk"
+                className="inline-flex items-center gap-2 text-xs font-bold text-[#1C1C21] border border-[#1C1C21]/20 hover:border-[#1C1C21] hover:bg-stone-50 px-4 py-2 rounded-full transition-all duration-200 shrink-0"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Download APK
+              </a>
+            </div>
+
+            {/* v1.1.1 */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-stone-200/60 hover:shadow-sm transition-shadow">
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] font-bold tracking-widest text-stone-400 border border-stone-200 px-2.5 py-1 rounded-full uppercase">v1.1.1</span>
+                <div>
+                  <p className="text-sm font-semibold text-stone-600 font-sans">v1.1.1 — Coder Timing Fix</p>
+                  <p className="text-xs text-stone-400 mt-0.5 font-sans">Jul 11, 2026 • Fixed typewriting speed and increased display duration for Coder</p>
+                </div>
+              </div>
+              <a
+                href="/releases/riddle-diary-v1.1.1.apk"
+                download="riddle-diary-v1.1.1.apk"
+                className="inline-flex items-center gap-2 text-xs font-medium text-stone-500 border border-stone-200 hover:border-stone-300 hover:bg-stone-50 px-4 py-2 rounded-full transition-all duration-200 shrink-0"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Download APK
+              </a>
+            </div>
+
+            {/* v1.1.0 */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-stone-200/60 hover:shadow-sm transition-shadow">
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] font-bold tracking-widest text-stone-400 border border-stone-200 px-2.5 py-1 rounded-full uppercase">v1.1.0</span>
+                <div>
+                  <p className="text-sm font-semibold text-stone-600 font-sans">v1.1.0 — Coder Persona</p>
                   <p className="text-xs text-stone-400 mt-0.5 font-sans">Jul 11, 2026 • Added Coder agent — solves any LeetCode instantly</p>
                 </div>
               </div>
               <a
                 href="/releases/riddle-diary-v1.1.0.apk"
                 download="riddle-diary-v1.1.0.apk"
-                className="inline-flex items-center gap-2 text-xs font-bold text-[#1C1C21] border border-[#1C1C21]/20 hover:border-[#1C1C21] hover:bg-stone-50 px-4 py-2 rounded-full transition-all duration-200 shrink-0"
+                className="inline-flex items-center gap-2 text-xs font-medium text-stone-500 border border-stone-200 hover:border-stone-300 hover:bg-stone-50 px-4 py-2 rounded-full transition-all duration-200 shrink-0"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />

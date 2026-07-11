@@ -208,6 +208,15 @@ fun DiaryScreen(context: Context) {
         }
     }
 
+    // Helper function to escape JSON strings to prevent payload corruption
+    fun escapeJsonString(str: String): String {
+        return str.replace("\\", "\\\\")
+                  .replace("\"", "\\\"")
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("\t", "\\t")
+    }
+
     // Direct HTTP call to Gemini API for handwriting vision & streaming response
     fun queryGemini(base64Image: String) {
         if (apiKey.isEmpty()) {
@@ -236,6 +245,7 @@ fun DiaryScreen(context: Context) {
                 conn.doOutput = true
 
                 val systemPrompt = getSystemPromptForCharacter(selectedCharacter)
+                val escapedSystemPrompt = escapeJsonString(systemPrompt)
 
                 val jsonPayload = """
                     {
@@ -248,7 +258,7 @@ fun DiaryScreen(context: Context) {
                             }
                         ],
                         "systemInstruction": {
-                            "parts": [{ "text": "$systemPrompt" }]
+                            "parts": [{ "text": "$escapedSystemPrompt" }]
                         }
                     }
                 """.trimIndent()
@@ -273,12 +283,13 @@ fun DiaryScreen(context: Context) {
                                 ?.replace("\\\"", "\"")
                                 ?.replace("\\\\", "\\") ?: ""
                             
-                            // Animate character-by-character stream
+                            // Diary personas: cozy 20ms typewriter. Coder: instant (code is long)
+                            val charDelay = if (selectedCharacter == "Coder") 0L else 20L
                             for (char in token) {
                                 withContext(Dispatchers.Main) {
                                     riddleResponseText += char
                                 }
-                                delay(20) // Character typewriting effect
+                                if (charDelay > 0) delay(charDelay)
                             }
                         }
                     }
@@ -287,9 +298,10 @@ fun DiaryScreen(context: Context) {
                     withContext(Dispatchers.Main) {
                         riddleState = "visible"
                         isProcessing = false
-                        // Set auto-fade timer for response text
+                        // Coder needs way more reading time (code is long). Diary personas fade after 5.5s.
+                        val fadeDuration = if (selectedCharacter == "Coder") 60_000L else 5_500L
                         fadeResponseJob = launch {
-                            delay(5500)
+                            delay(fadeDuration)
                             riddleState = "fading"
                             responseAlpha.animateTo(0f, tween(1500))
                             riddleState = "hidden"
