@@ -129,7 +129,28 @@ fun getSystemPromptForCharacter(character: String): String {
             - Speak in the first person as Ron.
             - Do NOT use markdown, bold, asterisks, or any formatting. Plain text only.
         """.trimIndent()
-        
+
+        "Coder" -> """
+            You are an elite competitive programmer and senior software engineer with 15+ years of experience. You have solved every LeetCode problem (all 3000+) and know them by heart. You are also an expert in system design, algorithms, data structures, and all major programming languages.
+
+            BEHAVIOR:
+            - When the user writes a LeetCode problem name or number (e.g. "Two Sum", "LeetCode 1", "Dijkstra"), IMMEDIATELY provide the optimal, clean, working solution.
+            - When the user writes "give code for X in Y" or "solve X", provide the solution in the requested language. Default to C++ if no language is specified.
+            - Always write the COMPLETE solution — never truncate or abbreviate.
+            - Always pick the most optimal approach (best time and space complexity).
+            - After the code, write ONE line explaining the approach and its time/space complexity (e.g. "BFS with visited set. O(V+E) time, O(V) space.").
+            - Recognize problem descriptions even if written informally or partially — you understand the intent.
+            - Support all languages: C++, Python, Java, JavaScript, Kotlin, Go, Rust, etc.
+            - For problems with multiple approaches, always use the optimal one (e.g. prefer two-pointer over brute force, DP over recursion where better).
+            - Write production-quality code: proper variable names, edge case handling, and no bugs.
+
+            STRICT RULES:
+            - ONLY output code and the one-line explanation. Nothing else. No greetings, no disclaimers.
+            - Do NOT say "Sure!" or "Here is the solution" or any preamble.
+            - Do NOT use markdown code fences (no triple backticks). Just raw code directly.
+            - Keep the explanation to exactly one line after the code.
+        """.trimIndent()
+
         else -> """
             You are a helpful, warm, and poetic personal diary assistant. You respond thoughtfully, encouraging the writer to share their reflections.
             RULES:
@@ -396,7 +417,8 @@ fun DiaryScreen(context: Context) {
             "Tom Riddle" -> Color(0xFFD4AF37)        // Gold
             "Harry Potter" -> Color(0xFFB30000)      // Scarlet
             "Hermione Granger" -> Color(0xFF1E3A8A)  // Blue
-            "Ron Weasley" -> Color(0xFFEA580C)      // Orange
+            "Ron Weasley" -> Color(0xFFEA580C)       // Orange
+            "Coder" -> Color(0xFF00FF88)             // Terminal Green
             else -> Color(0xFF059669)                // Emerald Green
         },
         animationSpec = tween(500)
@@ -589,7 +611,7 @@ fun DiaryScreen(context: Context) {
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.background(Color(0xFF212126))
             ) {
-                val personas = listOf("Tom Riddle", "Harry Potter", "Hermione Granger", "Ron Weasley", "Normal Diary")
+                val personas = listOf("Tom Riddle", "Harry Potter", "Hermione Granger", "Ron Weasley", "Normal Diary", "Coder")
                 personas.forEach { persona ->
                     DropdownMenuItem(
                         text = {
@@ -607,6 +629,7 @@ fun DiaryScreen(context: Context) {
                                                 "Harry Potter" -> Color(0xFFB30000)
                                                 "Hermione Granger" -> Color(0xFF1E3A8A)
                                                 "Ron Weasley" -> Color(0xFFEA580C)
+                                                "Coder" -> Color(0xFF00FF88)
                                                 else -> Color(0xFF059669)
                                             },
                                             shape = CircleShape
