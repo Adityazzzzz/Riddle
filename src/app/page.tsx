@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 export default function LandingPage() {
   const [visits, setVisits] = useState<number | null>(null);
   const [showAllReleases, setShowAllReleases] = useState(false);
+  const [ownerKey, setOwnerKey] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/visits')
@@ -18,8 +19,23 @@ export default function LandingPage() {
 
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('dev') === 'true' || params.get('admin') === 'true') {
-        setShowAllReleases(true);
+      const urlKey = params.get('key');
+      const sessionKey = sessionStorage.getItem('owner_key');
+      const keyToVerify = urlKey || sessionKey;
+
+      if (keyToVerify) {
+        fetch(`/api/verify?key=${encodeURIComponent(keyToVerify)}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.valid) {
+              setShowAllReleases(true);
+              setOwnerKey(keyToVerify);
+              sessionStorage.setItem('owner_key', keyToVerify);
+            } else {
+              sessionStorage.removeItem('owner_key');
+            }
+          })
+          .catch((err) => console.error('Key verification failed:', err));
       }
     }
   }, []);
@@ -140,7 +156,7 @@ export default function LandingPage() {
             {/* Premium Download Action Card */}
             <div className="mt-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 w-full">
               <a
-                href={showAllReleases ? '/releases/riddle-diary-v1.3.0.apk' : '/releases/riddle-diary-v1.0.4.apk'}
+                href={showAllReleases ? `/api/download?version=v1.3.0&key=${ownerKey || ''}` : '/api/download?version=v1.0.4'}
                 download={showAllReleases ? 'riddle-diary-v1.3.0.apk' : 'riddle-diary-v1.0.4.apk'}
                 className="px-8 py-4.5 rounded-xl bg-[#1C1C21] hover:bg-[#2d2d35] text-white font-medium shadow-xl shadow-[#1c1c21]/15 transition-all duration-300 active:scale-98 flex items-center gap-3.5 text-base border border-stone-800"
               >
@@ -260,7 +276,7 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <a
-                    href="/releases/riddle-diary-v1.3.0.apk"
+                    href={`/api/download?version=v1.3.0&key=${ownerKey || ''}`}
                     download="riddle-diary-v1.3.0.apk"
                     className="inline-flex items-center gap-2 text-xs font-bold text-[#1C1C21] border border-[#1C1C21]/20 hover:border-[#1C1C21] hover:bg-stone-50 px-4 py-2 rounded-full transition-all duration-200 shrink-0"
                   >
@@ -281,7 +297,7 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <a
-                    href="/releases/riddle-diary-v1.2.0.apk"
+                    href={`/api/download?version=v1.2.0&key=${ownerKey || ''}`}
                     download="riddle-diary-v1.2.0.apk"
                     className="inline-flex items-center gap-2 text-xs font-medium text-stone-500 border border-stone-200 hover:border-stone-300 hover:bg-stone-50 px-4 py-2 rounded-full transition-all duration-200 shrink-0"
                   >
@@ -302,7 +318,7 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <a
-                    href="/releases/riddle-diary-v1.1.2.apk"
+                    href={`/api/download?version=v1.1.2&key=${ownerKey || ''}`}
                     download="riddle-diary-v1.1.2.apk"
                     className="inline-flex items-center gap-2 text-xs font-medium text-stone-500 border border-stone-200 hover:border-stone-300 hover:bg-stone-50 px-4 py-2 rounded-full transition-all duration-200 shrink-0"
                   >
@@ -323,7 +339,7 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <a
-                    href="/releases/riddle-diary-v1.1.1.apk"
+                    href={`/api/download?version=v1.1.1&key=${ownerKey || ''}`}
                     download="riddle-diary-v1.1.1.apk"
                     className="inline-flex items-center gap-2 text-xs font-medium text-stone-500 border border-stone-200 hover:border-stone-300 hover:bg-stone-50 px-4 py-2 rounded-full transition-all duration-200 shrink-0"
                   >
@@ -344,7 +360,7 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <a
-                    href="/releases/riddle-diary-v1.1.0.apk"
+                    href={`/api/download?version=v1.1.0&key=${ownerKey || ''}`}
                     download="riddle-diary-v1.1.0.apk"
                     className="inline-flex items-center gap-2 text-xs font-medium text-stone-500 border border-stone-200 hover:border-stone-300 hover:bg-stone-50 px-4 py-2 rounded-full transition-all duration-200 shrink-0"
                   >
@@ -367,7 +383,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <a
-                href="/releases/riddle-diary-v1.0.4.apk"
+                href="/api/download?version=v1.0.4"
                 download="riddle-diary-v1.0.4.apk"
                 className="inline-flex items-center gap-2 text-xs font-medium text-stone-500 border border-stone-200 hover:border-stone-300 hover:bg-stone-50 px-4 py-2 rounded-full transition-all duration-200 shrink-0"
               >
